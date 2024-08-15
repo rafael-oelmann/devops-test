@@ -1,0 +1,128 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "KG DevOps interview CF stack",
+  "Resources": {
+
+      "InterviewEC2Instance": {
+          "Type": "AWS::EC2::Instance",
+          "Properties": {
+              "InstanceType": "t2.nano",
+              "ImageId": "ami-0c29bf45d019db4c2",
+              "SubnetId": { "Ref": "SubnetA" },
+              "Tags": [
+                  {
+                      "Key": "Name",
+                      "Value": "Rafael Oelmann"
+                  }
+              ],
+              "UserData": {
+                  "Fn::Base64": {
+                      "Fn::Sub": "#!/bin/bash\nsudo yum -y update\n"
+                  }
+              }
+          }
+      },
+
+      "MyLoadBalancer": {
+          "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+          "Properties": {
+              "Name": "MyLoadBalancer",
+              "Subnets": [
+                  { "Ref": "SubnetA" },
+                  { "Ref": "SubnetB" }
+              ],
+              "SecurityGroups": [
+                  { "Ref": "InstanceSecurityGroup" }
+              ],
+              "Scheme": "internal"
+          }
+      },
+
+      "MyTargetGroup": {
+          "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+          "Properties": {
+              "Name": "MyTargetGroup",
+              "Port": 80,
+              "Protocol": "HTTP",
+              "VpcId": { "Ref": "VPC" },
+              "HealthCheckIntervalSeconds": 30,
+              "HealthCheckPath": "/",
+              "HealthCheckProtocol": "HTTP",
+              "HealthCheckTimeoutSeconds": 5,
+              "HealthyThresholdCount": 2,
+              "UnhealthyThresholdCount": 2
+          }
+      },
+
+      "MyListener": {
+          "Type": "AWS::ElasticLoadBalancingV2::Listener",
+          "Properties": {
+              "DefaultActions": [
+                  {
+                      "Type": "forward",
+                      "ForwardConfig": {
+                          "TargetGroups": [
+                              {
+                                  "TargetGroupArn": { "Ref": "MyTargetGroup" },
+                                  "Weight": 1
+                              }
+                          ]
+                      }
+                  }
+              ],
+              "LoadBalancerArn": { "Ref": "MyLoadBalancer" },
+              "Port": 80,
+              "Protocol": "HTTP"
+          }
+      },
+
+      "InstanceSecurityGroup": {
+          "Type": "AWS::EC2::SecurityGroup",
+          "Properties": {
+              "GroupDescription": "Enable HTTP access",
+              "VpcId": { "Ref": "VPC" },
+              "SecurityGroupIngress": [
+                  {
+                      "IpProtocol": "tcp",
+                      "FromPort": 80,
+                      "ToPort": 80,
+                      "CidrIp": "0.0.0.0/0" 
+                  }
+              ]
+          }
+      },
+
+      "SubnetA": {
+          "Type": "AWS::EC2::Subnet",
+          "Properties": {
+              "AvailabilityZone": "eu-west-2a",
+              "CidrBlock": "10.0.0.0/24",
+              "VpcId": { "Ref": "VPC" }
+          }
+      },
+
+      "SubnetB": {
+          "Type": "AWS::EC2::Subnet",
+          "Properties": {
+              "AvailabilityZone": "eu-west-2b",
+              "CidrBlock": "10.0.1.0/24",
+              "VpcId": { "Ref": "VPC" }
+          }
+      },
+
+      "VPC": {
+          "Type": "AWS::EC2::VPC",
+          "Properties": {
+              "CidrBlock": "10.0.0.0/16",
+              "EnableDnsSupport": true,
+              "EnableDnsHostnames": true
+          }
+      }
+  },
+
+  "Outputs": {
+      "EC2InstanceID": {
+          "Value": { "Ref": "InterviewEC2Instance" }
+      }
+  }
+}
